@@ -1,7 +1,8 @@
- WITH
--- Paso 1: Unificar órdenes confirmadas con sus reseñas correspondientes.
-product_sales_with_reviews AS (
-  SELECT
+CREATE OR REPLACE TABLE `peya-food-and-groceries.automated_tables_reports.rating_product_level` AS 
+
+ WITH  product_sales_with_reviews AS 
+ (
+  SELECT DISTINCT 
   fs.id AS product_id_tabla_survey,
   fo.restaurant.id AS partner_id,
   partner_name,
@@ -23,20 +24,20 @@ product_sales_with_reviews AS (
   LEFT JOIN `peya-bi-tools-pro.il_qcommerce.feedback_survey_extended` AS fs ON CAST(fo.order_id AS STRING) = fs.order_id AND CAST(d.product.product_id AS STRING) = fs.id
   AND fs.question_category IN ("stars-ultra_fresh")
   AND fs.option_selected = TRUE
-JOIN `peya-bi-tools-pro.il_core.dim_partner` AS dp ON fo.restaurant.id = dp.partner_id
-JOIN `peya-bi-tools-pro.il_qcommerce.dim_vendor_product` AS vp ON d.product.product_id = vp.remote_product_id
-WHERE
-  TRUE
-  AND DATE(fo.registered_date) >= "2025-07-07"
-  --AND fo.business_type_id NOT IN (1, 7, 9, 11)
-  --AND LOWER(fo.order_status) = "confirmed"
-  AND d.subtotal > 0
-  AND REGEXP_CONTAINS(LOWER(partner_name), r"pedidosya|pya")
-  ---AND LOWER(vp.master_category_names.level_one) IN ('produce', 'meat / seafood')
-  AND (dp.is_aaa OR dp.is_darkstore)
-  --AND dp.shopper_type <> "NO_SHOPPER"
-  AND fs.question_category IN ("stars-ultra_fresh")
-  AND fs.option_selected = TRUE 
+  LEFT JOIN `peya-bi-tools-pro.il_core.dim_partner` AS dp ON fo.restaurant.id = dp.partner_id
+  LEFT JOIN `peya-bi-tools-pro.il_qcommerce.dim_vendor_product` AS vp ON d.product.product_id = vp.remote_product_id
+  WHERE
+    TRUE
+    AND DATE(fo.registered_date) >= "2025-07-07"
+    --AND fo.business_type_id NOT IN (1, 7, 9, 11)
+    --AND LOWER(fo.order_status) = "confirmed"
+    AND d.subtotal > 0
+    --AND REGEXP_CONTAINS(LOWER(partner_name), r"pedidosya|pya")
+    ---AND LOWER(vp.master_category_names.level_one) IN ('produce', 'meat / seafood')
+    --AND (dp.is_aaa OR dp.is_darkstore)
+    --AND dp.shopper_type <> "NO_SHOPPER"
+    AND fs.question_category IN ("stars-ultra_fresh")
+    AND fs.option_selected = TRUE 
 ) 
 
 SELECT DISTINCT 
