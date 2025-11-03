@@ -42,10 +42,11 @@ CREATE OR REPLACE TABLE `peya-food-and-groceries.automated_tables_reports.rating
 
 SELECT DISTINCT 
 product_id
+, country_code
 , product_name
 , partner_name
 , vendor_type
-, round(AVG(rating),2) AS rating
+, round(AVG(rating),1) AS rating
 , COUNT(*) AS total_ratings
 , SUM(CASE WHEN rating = 1 THEN 1 END ) AS qty_ratings_1_star
 , SUM(CASE WHEN rating = 2 THEN 1 END ) AS qty_ratings_2_star
@@ -53,4 +54,4 @@ product_id
 , SUM(CASE WHEN rating = 4 THEN 1 END ) AS qty_ratings_4_star
 , SUM(CASE WHEN rating = 5 THEN 1 END ) AS qty_ratings_5_star
  from product_sales_with_reviews
- GROUP BY 1,2,3,4
+ GROUP BY 1,2,3,4,5
