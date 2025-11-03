@@ -43,14 +43,14 @@ SELECT
   CASE
     WHEN pais = 'ar' THEN
       CASE
-        WHEN ventas_por_cadena_sku BETWEEN 250   AND   399 THEN   250
-        WHEN ventas_por_cadena_sku BETWEEN 400   AND   649 THEN   400
-        WHEN ventas_por_cadena_sku BETWEEN 650   AND   999 THEN   650
-        WHEN ventas_por_cadena_sku BETWEEN 1000  AND  1999 THEN  1000 
-        WHEN ventas_por_cadena_sku BETWEEN 2000  AND  2999 THEN  2000
-        WHEN ventas_por_cadena_sku BETWEEN 3000  AND  4999 THEN  3000 
-        WHEN ventas_por_cadena_sku BETWEEN 5000  AND  7999 THEN  5000
-        WHEN ventas_por_cadena_sku BETWEEN 8000  AND 12999 THEN  8000
+        WHEN ventas_por_cadena_sku BETWEEN   250 AND   399 THEN   250
+        WHEN ventas_por_cadena_sku BETWEEN   400 AND   649 THEN   400
+        WHEN ventas_por_cadena_sku BETWEEN   650 AND   999 THEN   650
+        WHEN ventas_por_cadena_sku BETWEEN  1000 AND  1999 THEN  1000 
+        WHEN ventas_por_cadena_sku BETWEEN  2000 AND  2999 THEN  2000
+        WHEN ventas_por_cadena_sku BETWEEN  3000 AND  4999 THEN  3000 
+        WHEN ventas_por_cadena_sku BETWEEN  5000 AND  7999 THEN  5000
+        WHEN ventas_por_cadena_sku BETWEEN  8000 AND 12999 THEN  8000
         WHEN ventas_por_cadena_sku BETWEEN 13000 AND 20999 THEN 13000
         WHEN ventas_por_cadena_sku BETWEEN 21000 AND 33999 THEN 21000 
         WHEN ventas_por_cadena_sku >= 34000 THEN 34000
@@ -58,16 +58,16 @@ SELECT
       END
     ELSE 
       CASE
-        WHEN ventas_por_cadena_sku BETWEEN 100   AND   199 THEN 100
-        WHEN ventas_por_cadena_sku BETWEEN 200   AND   299 THEN 200
-        WHEN ventas_por_cadena_sku BETWEEN 300   AND   499 THEN 300
-        WHEN ventas_por_cadena_sku BETWEEN 500   AND   799 THEN 500
-        WHEN ventas_por_cadena_sku BETWEEN 800   AND   999 THEN 800
-        WHEN ventas_por_cadena_sku BETWEEN 1000  AND  1999 THEN 1000
-        WHEN ventas_por_cadena_sku BETWEEN 2000  AND  2999 THEN 2000
-        WHEN ventas_por_cadena_sku BETWEEN 3000  AND  4999 THEN 3000 
-        WHEN ventas_por_cadena_sku BETWEEN 5000  AND  7999 THEN 5000
-        WHEN ventas_por_cadena_sku BETWEEN 8000  AND 12999 THEN 8000
+        WHEN ventas_por_cadena_sku BETWEEN   100 AND   199 THEN   100
+        WHEN ventas_por_cadena_sku BETWEEN   200 AND   299 THEN   200
+        WHEN ventas_por_cadena_sku BETWEEN   300 AND   499 THEN   300
+        WHEN ventas_por_cadena_sku BETWEEN   500 AND   799 THEN   500
+        WHEN ventas_por_cadena_sku BETWEEN   800 AND   999 THEN   800
+        WHEN ventas_por_cadena_sku BETWEEN  1000 AND  1999 THEN  1000
+        WHEN ventas_por_cadena_sku BETWEEN  2000 AND  2999 THEN  2000
+        WHEN ventas_por_cadena_sku BETWEEN  3000 AND  4999 THEN  3000 
+        WHEN ventas_por_cadena_sku BETWEEN  5000 AND  7999 THEN  5000
+        WHEN ventas_por_cadena_sku BETWEEN  8000 AND 12999 THEN  8000
         WHEN ventas_por_cadena_sku BETWEEN 13000 AND 20999 THEN 13000 
         WHEN ventas_por_cadena_sku >= 21000 THEN 21000
         ELSE CAST(FLOOR(ventas_por_cadena_sku / 100) * 100 AS INT64)
