@@ -1,0 +1,149 @@
+with  dim_partner AS
+(
+SELECT DISTINCT
+partner_id,
+business_type.business_type_description,
+partner_name,
+CASE
+WHEN business_type.business_type_description = 'Restaurant' then 'FOOD'
+WHEN  business_type.business_type_description IN ('Courier','Courier Business' ) then 'Courier'
+WHEN REGEXP_CONTAINS(LOWER(partner_name), r"pedidosya|pya") THEN 'DMart'
+WHEN is_aaa is true THEN 'AAA'
+ELSE 'Local Store'
+END as vendor_type ,
+franchise.franchise_name
+FROM `peya-bi-tools-pro.il_core.dim_partner`
+WHERE
+TRUE 
+)
+
+,  base_orders_users_acq AS 
+(
+  SELECT
+    o.user_id,
+    o.cust_id,
+    o.fecha as first_order_date,
+    o.order_id as first_order_id,
+    o.qc_trial,
+    o.acq,
+    o.business,
+    p.vendor_type
+
+  FROM (
+  SELECT 
+    o.user_id
+  , o.fecha 
+  , o.order_id
+  , o.partner_id
+  , o.qc_trial
+  , o.acq
+  , o.business
+  , o.cust_id
+  , ROW_NUMBER() OVER (PARTITION BY CONCAT(o.user_id) ORDER BY o.fecha ASC) AS rank
+  
+  FROM `peya-datamarts-pro.dm_onboarding.orders_objectives` o
+  WHERE acq IS TRUE -- (qc_trial is true or acq is true )
+    AND fecha BETWEEN '2025-07-01' AND '2025-07-31'
+  ) o
+  
+  LEFT JOIN dim_partner p 
+    ON  p.partner_id = o.partner_id   
+
+  WHERE rank = 1
+)
+
+
+, currency_exchange AS
+(
+  SELECT 
+     dc.country_code
+    ,dce.currency_exchange_date
+    ,dce.rate_eu
+    ,dce.currency_iso
+    ,dce.currency_id
+  FROM `peya-bi-tools-pro.il_core.dim_country` dc
+  LEFT JOIN `peya-bi-tools-pro.il_core.dim_currency_exchange` dce  ON dc.currency_id = dce.currency_id
+)
+
+
+, new_orders_info AS 
+(
+  SELECT 
+  fo.user.id as user_id,
+  fo.order_id,
+  fo.registered_date,
+  DATE_DIFF(fo.registered_date ,b.first_order_date, day) as days_from_first_order,
+  fo.restaurant.id as partner_id,
+  fo.business_type.business_type_name,
+  CASE WHEN  business_type.business_type_name = 'Restaurant' THEN TRUE ELSE FALSE END AS food_flag,
+  CASE WHEN  business_type.business_type_name = 'Market' THEN TRUE ELSE FALSE END AS market_flag,
+  fo.total_amount AS total_amount_local,
+  SAFE_DIVIDE(total_amount, rate_eu)  as total_amount_eur,
+ --lo que pagó el usuario
+  fo.discount_amount as discount_amount_local, --total de descuentoa
+  SAFE_DIVIDE(fo.discount_amount, rate_eu)  as discount_amount_eur,
+  fo.amount_no_discount as amount_no_discount_local, 
+  SAFE_DIVIDE(fo.amount_no_discount, rate_eu)  as amount_no_discount_eur,
+  fo.qty_total_products, 
+
+  FROM `peya-bi-tools-pro.il_core.fact_orders` fo
+
+  INNER JOIN base_orders_users_acq b
+    ON b.user_id = fo.user.id AND fo.order_id != b.first_order_id AND DATE_DIFF(fo.registered_date ,b.first_order_date, day) <= 60
+  
+  LEFT JOIN currency_exchange ce 
+    ON ce.country_code = fo.country.country_code 
+      AND ce.currency_exchange_date = DATE_TRUNC(DATE(fo.registered_date), month)
+  
+  WHERE DATE(fo.registered_date) >= '2025-07-01' --AND fo.order_id NOT IN (SELECT DISTINCT order_id)  
+  ORDER BY 1,3
+ )
+
+ , new_orders_60_user as 
+ (
+  SELECT
+  user_id, 
+  COUNT(DISTINCT(order_id)) AS new_orders_60_days,  
+  COUNT(DISTINCT IF(food_flag IS TRUE, order_id, NULL)) AS new_food_orders,
+  COUNT(DISTINCT IF(market_flag IS TRUE, order_id, NULL)) AS new_market_orders,
+  SUM(total_amount_eur) AS amount_60_days,
+  FROM new_orders_info
+  group by 1
+)
+
+, final_tmp AS 
+(
+  SELECT
+    b.*
+  , n.new_orders_60_days
+  , CASE WHEN n.new_orders_60_days IS NOT NULL THEN 'HAS_REORDER_60d' END AS HAS_REORDER_60d
+  , amount_60_days
+  , new_food_orders
+  , new_market_orders
+  , CASE 
+      WHEN COALESCE(new_orders_60_days,0) = 0 THEN 'a. no new orders'
+      WHEN COALESCE(new_food_orders,0) = 0 AND new_market_orders > 0 THEN 'b. only market new orders'
+      WHEN COALESCE(new_market_orders,0) = 0 AND new_food_orders > 0 THEN 'c. only food new orders'
+      WHEN new_market_orders > 0 AND new_food_orders > 0 THEN 'd. market & food new orders'
+      ELSE 'e. Other order type'
+    END AS new_order_type
+  FROM base_orders_users_acq  b
+  LEFT JOIN  new_orders_60_user n 
+    ON b.user_id = n.user_id 
+)
+
+ 
+ 
+SELECT 
+  vendor_type
+  , new_order_type
+, count(distinct user_id) qty_user_id
+, SUM(new_orders_60_days) new_orders_60_days_total
+, count(distinct IF(new_orders_60_days>0, user_id, NULL)) as reorder_60d
+--, SAFE_DIVIDE(count(distinct IF(new_orders_60_days>0, user_id, NULL)), count(distinct user_id)) AS reorder_60d
+, sum(amount_60_days) AS amount_60_days
+, avg(amount_60_days) AS avg_amount_60_days
+
+from final_tmp 
+GROUP BY 1,2
+ 
