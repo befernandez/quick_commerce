@@ -1,4 +1,58 @@
-with  dim_partner AS
+with    users_universe AS 
+(
+  SELECT  
+    du.country_id,
+    du.country.country_name,
+    du.user_id,
+    CASE 
+      WHEN ci.income IN ('HIGH', 'MID-HIGH') THEN 'High'
+      WHEN ci.income IN ('MID') THEN 'Mid'
+      WHEN ci.income IN ('LOW', 'MID-LOW') THEN 'Low'
+      WHEN ci.income = 'UNKNOWN' OR ci.income IS NULL THEN 'Other'
+      ELSE ci.income 
+    END AS user_income,
+    CASE 
+      WHEN (ci.age < 20 AND ci.age IS NOT NULL) THEN 'Teen'
+      WHEN (ci.age >= 20 AND ci.age < 25 ) OR ((ci.age >= 20 OR ci.age IS NULL) AND ci.age_group_merged = 'U25') THEN 'Young 20s'
+      WHEN (ci.age >= 25 AND ci.age IS NOT NULL AND ci.age < 30) THEN "Old 20s"
+      WHEN (((ci.age >= 30 AND ci.age IS NOT NULL) OR ci.age IS NULL) AND ci.age_group_merged = 'U35') THEN 'Young Adult'
+      WHEN (((ci.age > 35 AND ci.age IS NOT NULL) OR ci.age IS NULL) AND ci.age_group_merged = 'U45')  THEN 'Adult'
+      WHEN (((ci.age > 45 AND ci.age IS NOT NULL) OR ci.age IS NULL) AND ci.age_group_merged = 'O45')  THEN 'Senior'
+      ELSE ci.age_group_merged
+    END AS user_age_group,
+    CASE 
+      WHEN ci.gender_merged IN ("FEMALE", "MALE") THEN INITCAP(ci.gender_merged) 
+      ELSE NULL 
+    END AS user_gender,
+  
+  FROM `peya-bi-tools-pro.il_core.dim_user` du
+  
+  INNER JOIN `peya-bi-tools-pro.il_core.dim_country` AS dc 
+    ON (du.country_id = dc.country_id AND dc.active)
+  
+  LEFT JOIN `peya-bi-tools-pro.il_growth.user_income` AS ci 
+    ON du.user_id = ci.user_id
+  
+  GROUP BY 1, 2, 3, 4, 5, 6
+  )
+
+, user_segment_qc AS 
+(
+  select *
+  ,
+    CASE 
+    WHEN u.user_income IN ('High', "Mid", "Low") AND u.user_age_group = 'Teen' THEN 'Future Core (15 a 19)'
+    WHEN u.user_income IN ('High', "Mid", "Low") AND u.user_age_group = 'Young 20s' THEN 'Future Core (20 a 24)'
+    WHEN u.user_income IN ('High', "Mid") AND u.user_age_group = 'Old 20s' THEN 'Future Core (25 a 29)'
+    WHEN u.user_income = 'High' AND u.user_age_group IN ("Young Adult", 'Adult', "Senior") THEN 'Core'
+    WHEN u.user_income = 'Mid' AND u.user_age_group IN ("Young Adult", 'Adult', "Senior") THEN 'Complementary'
+    WHEN u.user_income = 'Low' AND u.user_age_group IN ("Young Adult", 'Adult', "Senior", "Old 20s") THEN 'Not Core'
+    ELSE 'Other' 
+  END AS subsegment
+  FROM users_universe u
+)
+
+ , dim_partner AS
 (
 SELECT DISTINCT
 partner_id,
@@ -28,7 +82,8 @@ TRUE
     o.acq,
     o.business,
     p.vendor_type,
-    p.business_type_description
+    p.business_type_description,
+    subsegment
 
   FROM (
   SELECT 
@@ -49,6 +104,7 @@ TRUE
   
   LEFT JOIN dim_partner p 
     ON  p.partner_id = o.partner_id   
+  LEFT JOIN user_segment_qc ON user_segment_qc.USER_ID  = o.user_id
 
   WHERE rank = 1
 )
@@ -211,6 +267,7 @@ TRUE
  
 SELECT 
   vendor_type
+  , subsegment
   , new_order_type_60
   , mkt_voucher
   , new_order_type_180
@@ -222,7 +279,4 @@ SELECT
 , count(distinct IF(new_orders_180_days>0, user_id, NULL)) as reorder_180d 
 , sum(amount_180_days) AS amount_180_days 
 from final_tmp 
-GROUP BY 1,2,3,4
-
- 
- 
+GROUP BY 1,2,3,4,5
